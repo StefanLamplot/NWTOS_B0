@@ -50,4 +50,7 @@ $IPT -A dmz_ext -j REJECT
 # MASQUERADING (NAT für ausgehenden Traffic ins Internet)
 $IPT -t nat -A POSTROUTING -o outside -j MASQUERADE
 
+#apt install iptables-persistent
+iptables-save -f /etc/iptables/rules.v4
+
 echo "Konfiguration abgeschlossen."
