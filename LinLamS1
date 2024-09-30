@@ -15,7 +15,7 @@ network:
       addresses:
         - 192.168.5.254/24
       match:
-        macaddress: 00:0c:29:ea:64:7e
+        macaddress: 00:0c:29:ea:63:7e
       set-name: dmz
     outside:
       dhcp4: true
