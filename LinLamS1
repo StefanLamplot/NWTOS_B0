@@ -54,13 +54,17 @@ $IPT -N dmz_ext
 
 	# ICMP (Ping) erlauben
 		$IPT -A lan_dmz -p icmp -s 10.0.0.0/24 -d 192.168.5.0/24 -j ACCEPT
+		$IPT -A lan_dmz -p icmp -s 192.168.5.0/24 -d 10.0.0.0/24 -j ACCEPT  # Vertauschte Regel
 
 	# SSH (Port 22) erlauben
 		$IPT -A lan_dmz -p tcp -s 10.0.0.0/24 -d 192.168.5.0/24 --dport 22 -j ACCEPT    # SSH von LAN <-> DMZ
+		$IPT -A lan_dmz -p tcp -s 192.168.5.0/24 -d 10.0.0.0/24 --sport 22 -j ACCEPT    # Vertauschte Regel
 
 	# DNS (Port 53 TCP/UDP) erlauben
 		$IPT -A lan_dmz -p tcp -s 10.0.0.0/24 -d 192.168.5.0/24 --dport domain -j ACCEPT  # DNS TCP von LAN <-> DMZ
+		$IPT -A lan_dmz -p tcp -s 192.168.5.0/24 -d 10.0.0.0/24 --sport domain -j ACCEPT  # Vertauschte Regel
 		$IPT -A lan_dmz -p udp -s 10.0.0.0/24 -d 192.168.5.0/24 --dport domain -j ACCEPT  # DNS UDP von LAN <-> DMZ
+		$IPT -A lan_dmz -p udp -s 192.168.5.0/24 -d 10.0.0.0/24 --sport domain -j ACCEPT  # Vertauschte Regel
 
 	# Alle anderen Verbindungen ablehnen
 		$IPT -A lan_dmz -j REJECT
