@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sudo hostnamectl set-hostname LinLamS2
+sudo hostnamectl set-hostname LinLamS1
 
 sudo cat <<EOT > /etc/netplan/00-installer-config.yaml
 network:
