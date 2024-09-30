@@ -9,18 +9,18 @@ network:
       addresses:
         - 10.0.0.254/24
       match:
-        macaddress: 00:0c:29:ea:63:74
+        macaddress: $1
       set-name: lan
     dmz:
       addresses:
         - 192.168.5.254/24
       match:
-        macaddress: 00:0c:29:ea:63:7e
+        macaddress: $2
       set-name: dmz
     outside:
       dhcp4: true
       match:
-        macaddress: 00:0c:29:ea:63:88
+        macaddress: $3
       set-name: outside
   version: 2
 EOT
