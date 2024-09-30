@@ -1,0 +1,98 @@
+#!/bin/bash
+
+sudo hostnamectl set-hostname LinLamS2
+
+sudo cat <<EOT > /etc/netplan/00-installer-config.yaml
+network:
+  ethernets:
+    lan:
+      addresses:
+        - 10.0.0.254/24
+      match:
+        macaddress: $1
+      set-name: lan
+    dmz:
+      addresses:
+        - 192.168.5.254/24
+      match:
+        macaddress: $2
+      set-name: dmz
+    outside:
+      dhcp4: true
+      match:
+        macaddress: $3
+      set-name: outside
+  version: 2
+EOT
+
+sudo netplan apply
+sudo sysctl -w net.ipv4.ip_forward=1
+sudo sysctl -w net.ipv6.conf.all.forwarding=1
+sudo sysctl -p
+
+IPT="/sbin/iptables"
+
+# Flush und Löschen der Custom-Chains
+$IPT -F
+$IPT -X
+
+# Standard-Policy setzen (deny any any)
+$IPT -P INPUT DROP
+$IPT -P OUTPUT DROP
+$IPT -P FORWARD DROP
+
+# Eigene Chains anlegen
+$IPT -N lan_dmz
+$IPT -N lan_ext
+$IPT -N dmz_ext
+
+# LAN <-> DMZ (DNS, SSH, ICMP, DHCP)
+$IPT -A FORWARD -i lan -o dmz -j lan_dmz
+$IPT -A FORWARD -i dmz -o lan -j lan_dmz
+# Verbindungen erlauben, die Teil eines bereits bestehenden Verbindungszustands sind
+$IPT -A lan_dmz -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+# ICMP (Ping) erlauben
+$IPT -A lan_dmz -p icmp -j ACCEPT
+# SSH (Port 22) erlauben
+$IPT -A lan_dmz -p tcp --dport 22 -j ACCEPT    # SSH von LAN <-> DMZ
+# DNS (Port 53 TCP/UDP) erlauben
+$IPT -A lan_dmz -p tcp --dport domain -j ACCEPT  # DNS TCP von LAN <-> DMZ
+$IPT -A lan_dmz -p udp --dport domain -j ACCEPT  # DNS UDP von LAN <-> DMZ
+# DHCP-Anfragen (Client -> Server) von LAN zur DMZ erlauben
+$IPT -A lan_dmz -p udp --sport 68 --dport 67 -j ACCEPT   # DHCP-Client-Anfrage (LAN -> DMZ)
+# DHCP-Antworten (Server -> Client) von DMZ ins LAN erlauben
+$IPT -A lan_dmz -p udp --sport 67 --dport 68 -j ACCEPT   # DHCP-Server-Antwort (DMZ -> LAN)
+# Alle anderen Verbindungen ablehnen
+$IPT -A lan_dmz -j REJECT
+
+
+
+
+# LAN -> INTERNET (HTTP, HTTPS, NTP, ICMP)
+$IPT -A FORWARD -i lan -o outside -j lan_ext
+$IPT -A FORWARD -i outside -o lan -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+$IPT -A lan_ext -p tcp --dport 80 -j ACCEPT    # HTTP
+$IPT -A lan_ext -p tcp --dport 443 -j ACCEPT   # HTTPS
+$IPT -A lan_ext -p udp --dport 123 -j ACCEPT   # NTP
+$IPT -A lan_ext -p icmp -j ACCEPT              # ICMP
+$IPT -A lan_ext -j REJECT
+
+
+
+
+# DMZ -> INTERNET (NTP, ICMP, DNS)
+$IPT -A FORWARD -i dmz -o outside -j dmz_ext
+$IPT -A FORWARD -i outside -o dmz -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+$IPT -A dmz_ext -p udp --dport 123 -j ACCEPT   # NTP
+$IPT -A dmz_ext -p udp --dport domain -j ACCEPT  # DNS UDP
+$IPT -A dmz_ext -p tcp --dport domain -j ACCEPT  # DNS TCP
+$IPT -A dmz_ext -p icmp -j ACCEPT              # ICMP
+$IPT -A dmz_ext -j REJECT
+
+# MASQUERADING (NAT für ausgehenden Traffic ins Internet)
+$IPT -t nat -A POSTROUTING -o outside -j MASQUERADE
+
+
+echo "Konfiguration abgeschlossen."
