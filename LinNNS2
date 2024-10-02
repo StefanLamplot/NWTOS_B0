@@ -1,0 +1,31 @@
+sudo cat <<EOT > /etc/netplan/00-installer-config.yaml
+network:
+  ethernets:
+    ens33:
+      addresses:
+        - 192.168.5.100/24
+      
+  version: 2
+EOT
+
+sudo netplan apply
+
+sudo cat <<EOT > /etc/bind/named.conf.options
+options {
+    directory "/var/cache/bind";
+
+    // Forwarder-Konfiguration
+    forwarders {
+        9.9.9.9;    // Quad9
+        208.67.222.222;    // OpenDNS
+    };
+
+    // Kein rekursives DNS (nur Weiterleitung)
+    recursion yes;
+    allow-query { any; };
+
+    // Optional: Diese Einstellung sorgt dafür, dass nur Forwarding erfolgt.
+    forward only;
+};
+EOT
+sudo systemctl restart bind9
